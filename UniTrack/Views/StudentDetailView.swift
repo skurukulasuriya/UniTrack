@@ -18,6 +18,15 @@ struct StudentDetailView: View {
         GPACalculator.gpa(for: student.enrolments, on: scale)
     }
 
+    /// Credit points from units that actually count, which is what progress
+    /// through the course is measured in.
+    private var completedCreditPoints: Int {
+        student.enrolments
+            .filter { $0.countsTowardCalculations && $0.grade != .fail && $0.grade != .withdrawnFail }
+            .compactMap { $0.unit?.creditPoints }
+            .reduce(0, +)
+    }
+
     /// Newest results first, which is what people usually want to see.
     private var sortedEnrolments: [Enrolment] {
         student.enrolments.sorted {
@@ -27,139 +36,184 @@ struct StudentDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                identityHeader
-                performanceCards
-                enrolmentsTable
+            VStack(alignment: .leading, spacing: 18) {
+                header
+                metrics
+                detailsCard
+                enrolmentsCard
+                if !session.canEditRecords {
+                    readOnlyNotice
+                }
             }
-            .padding(26)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(22)
+            .frame(maxWidth: 900, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
+        .background(.background)
         .navigationTitle(student.fullName)
         .navigationSubtitle(student.studentID)
     }
 
-    private var identityHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(student.fullName)
-                .font(.title.weight(.semibold))
+    private var header: some View {
+        HStack(spacing: 14) {
+            InitialsAvatar(givenName: student.givenName,
+                           familyName: student.familyName,
+                           size: 58)
 
-            Grid(alignment: .leading, horizontalSpacing: 26, verticalSpacing: 6) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(student.fullName)
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+
+                HStack(spacing: 7) {
+                    StatusChip(text: student.studentID, systemImage: "number")
+                    StatusChip(text: student.status.displayName,
+                               systemImage: statusIcon,
+                               emphasised: student.status == .active)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var statusIcon: String {
+        switch student.status {
+        case .active: "checkmark.circle.fill"
+        case .onLeave: "pause.circle.fill"
+        case .completed: "graduationcap.fill"
+        case .withdrawn: "xmark.circle.fill"
+        }
+    }
+
+    /// The three headline figures, grouped so the glass reads as one surface.
+    private var metrics: some View {
+        GlassEffectContainer(spacing: 14) {
+            HStack(spacing: 14) {
+                MetricCard(title: "Course WAM",
+                           value: WAMCalculator.formatted(courseWAM),
+                           caption: "Weighted by credit points",
+                           systemImage: "chart.bar.fill")
+
+                MetricCard(title: "Course GPA",
+                           value: GPACalculator.formatted(courseGPA, on: scale),
+                           caption: "\(scale.displayName) scale",
+                           systemImage: "star.fill") {
+                    Picker("Scale", selection: $scale) {
+                        ForEach(GPAScale.allCases) { option in
+                            Text(option.displayName).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .controlSize(.small)
+                }
+
+                MetricCard(title: "Credit Points",
+                           value: "\(completedCreditPoints)",
+                           caption: "of \(student.course?.totalCreditPoints ?? 0) completed",
+                           systemImage: "checkmark.seal.fill")
+            }
+        }
+    }
+
+    private var detailsCard: some View {
+        SectionCard(title: "Personal Details", systemImage: "person.text.rectangle") {
+            Grid(alignment: .leading, horizontalSpacing: 30, verticalSpacing: 12) {
                 GridRow {
-                    detailPair("Student ID", student.studentID)
-                    detailPair("Status", student.status.displayName)
+                    labelled("Email", student.email)
+                    labelled("Date of Birth",
+                             student.dateOfBirth.formatted(date: .abbreviated, time: .omitted))
                 }
                 GridRow {
-                    detailPair("Email", student.email)
-                    detailPair("Date of Birth", student.dateOfBirth.formatted(date: .abbreviated, time: .omitted))
-                }
-                GridRow {
-                    detailPair("Course", student.course.map { "\($0.code) — \($0.title)" } ?? "Not enrolled")
+                    labelled("Course", student.course.map { "\($0.code) — \($0.title)" } ?? "Not enrolled")
                         .gridCellColumns(2)
                 }
             }
         }
     }
 
-    private func detailPair(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.body)
-        }
-    }
-
-    /// WAM and GPA side by side. Grouped in one glass container so the two cards
-    /// read as a pair.
-    private var performanceCards: some View {
-        GlassEffectContainer(spacing: 16) {
-            HStack(spacing: 16) {
-                metricCard(title: "Course WAM",
-                           value: WAMCalculator.formatted(courseWAM),
-                           caption: "Weighted by credit points")
-
-                metricCard(title: "Course GPA",
-                           value: GPACalculator.formatted(courseGPA, on: scale),
-                           caption: "\(scale.displayName) scale")
-                    .overlay(alignment: .bottomTrailing) {
-                        Picker("Scale", selection: $scale) {
-                            ForEach(GPAScale.allCases) { option in
-                                Text(option.displayName).tag(option)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        .frame(width: 150)
-                        .padding(12)
-                    }
-            }
-        }
-    }
-
-    private func metricCard(title: String, value: String, caption: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private func labelled(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.system(size: 34, weight: .medium, design: .rounded))
-                .monospacedDigit()
-            Text(caption)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            Text(value)
+                .font(.callout)
+                .textSelection(.enabled)
         }
-        .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
-        .padding(18)
-        .glassEffect(.regular, in: .rect(cornerRadius: 16))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var enrolmentsTable: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Enrolled Units")
-                .font(.headline)
+    private var enrolmentsCard: some View {
+        SectionCard(title: "Enrolled Units", systemImage: "list.bullet.rectangle") {
+            VStack(spacing: 0) {
+                columnHeadings
 
-            Table(sortedEnrolments) {
-                TableColumn("Unit") { enrolment in
-                    Text(enrolment.unit?.code ?? "—")
+                Divider().padding(.vertical, 2)
+
+                ForEach(sortedEnrolments, id: \.persistentModelID) { enrolment in
+                    enrolmentRow(enrolment)
+                    if enrolment.persistentModelID != sortedEnrolments.last?.persistentModelID {
+                        Divider().opacity(0.4)
+                    }
                 }
-                .width(min: 84, ideal: 92)
-
-                TableColumn("Title") { enrolment in
-                    Text(enrolment.unit?.title ?? "—")
-                }
-
-                TableColumn("Period") { enrolment in
-                    Text("\(enrolment.progressionPeriod) \(String(enrolment.year))")
-                }
-                .width(min: 118, ideal: 130)
-
-                TableColumn("CP") { enrolment in
-                    Text(enrolment.unit.map { String($0.creditPoints) } ?? "—")
-                        .monospacedDigit()
-                }
-                .width(38)
-
-                TableColumn("Mark") { enrolment in
-                    Text(enrolment.mark.map(String.init) ?? "—")
-                        .monospacedDigit()
-                }
-                .width(48)
-
-                TableColumn("Grade") { enrolment in
-                    Text(enrolment.grade.code)
-                }
-                .width(56)
-            }
-            .frame(minHeight: 220)
-
-            if !session.canEditRecords {
-                Label("Signed in as a general user, so this record is read only.",
-                      systemImage: "lock")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var columnHeadings: some View {
+        HStack(spacing: 10) {
+            Text("Unit").frame(width: 74, alignment: .leading)
+            Text("Title").frame(maxWidth: .infinity, alignment: .leading)
+            Text("Period").frame(width: 122, alignment: .leading)
+            Text("CP").frame(width: 30, alignment: .trailing)
+            Text("Mark").frame(width: 42, alignment: .trailing)
+            Text("Grade").frame(width: 52, alignment: .center)
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.secondary)
+    }
+
+    private func enrolmentRow(_ enrolment: Enrolment) -> some View {
+        HStack(spacing: 10) {
+            Text(enrolment.unit?.code ?? "—")
+                .font(.callout.monospaced())
+                .frame(width: 74, alignment: .leading)
+
+            Text(enrolment.unit?.title ?? "—")
+                .font(.callout)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text("\(enrolment.progressionPeriod) \(String(enrolment.year))")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 122, alignment: .leading)
+
+            Text(enrolment.unit.map { String($0.creditPoints) } ?? "—")
+                .font(.callout)
+                .monospacedDigit()
+                .frame(width: 30, alignment: .trailing)
+
+            Text(enrolment.mark.map(String.init) ?? "—")
+                .font(.callout)
+                .monospacedDigit()
+                .frame(width: 42, alignment: .trailing)
+
+            StatusChip(text: enrolment.grade.code,
+                       emphasised: enrolment.grade == .highDistinction)
+                .frame(width: 52)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var readOnlyNotice: some View {
+        Label("Signed in as a general user, so this record is read only.",
+              systemImage: "lock.fill")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassEffect(.regular, in: .rect(cornerRadius: 10))
     }
 }

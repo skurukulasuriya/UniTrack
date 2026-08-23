@@ -8,73 +8,130 @@ struct SignInView: View {
     @Query private var accounts: [UserAccount]
 
     @State private var username = ""
-    @State private var passphrase = ""
+    @State private var password = ""
+    @State private var isShaking = false
     @FocusState private var focusedField: Field?
 
-    private enum Field { case username, passphrase }
+    private enum Field { case username, password }
+
+    private var canSubmit: Bool {
+        !username.trimmingCharacters(in: .whitespaces).isEmpty && !password.isEmpty
+    }
 
     var body: some View {
-        // A glass container lets the two glass surfaces blend into each other
-        // instead of each being drawn separately.
-        GlassEffectContainer(spacing: 20) {
-            VStack(spacing: 24) {
-                header
+        ZStack {
+            backdrop
 
-                VStack(spacing: 14) {
-                    TextField("Username", text: $username)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($focusedField, equals: .username)
-                        .onSubmit { focusedField = .passphrase }
-
-                    SecureField("Passphrase", text: $passphrase)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($focusedField, equals: .passphrase)
-                        .onSubmit(attemptSignIn)
-
-                    if let error = session.lastError {
-                        Label(error, systemImage: "exclamationmark.triangle")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    Button("Sign In", action: attemptSignIn)
-                        .buttonStyle(.glassProminent)
-                        .controlSize(.large)
-                        .frame(maxWidth: .infinity)
-                        .disabled(username.isEmpty || passphrase.isEmpty)
+            GlassEffectContainer(spacing: 22) {
+                VStack(spacing: 20) {
+                    branding
+                    signInCard
                 }
-                .frame(width: 320)
-                .padding(24)
-                .glassEffect(.regular, in: .rect(cornerRadius: 20))
+                .frame(width: 380)
             }
-            .padding(40)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.background)
         .onAppear { focusedField = .username }
     }
 
-    private var header: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "graduationcap")
-                .font(.system(size: 40, weight: .light))
-                .foregroundStyle(.secondary)
-            Text("UniTrack")
-                .font(.largeTitle.weight(.semibold))
-            Text("ECU Student Record System")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+    /// Soft layered background so the glass has something to sit against.
+    /// Without this the panel reads as a flat grey rectangle.
+    private var backdrop: some View {
+        ZStack {
+            Rectangle().fill(.background)
+            Circle()
+                .fill(.tint.opacity(0.16))
+                .blur(radius: 130)
+                .frame(width: 460, height: 460)
+                .offset(x: -170, y: -160)
+            Circle()
+                .fill(.tint.opacity(0.10))
+                .blur(radius: 150)
+                .frame(width: 520, height: 520)
+                .offset(x: 190, y: 190)
+        }
+        .ignoresSafeArea()
+    }
+
+    private var branding: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "graduationcap.fill")
+                .font(.system(size: 30, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.tint)
+                .frame(width: 68, height: 68)
+                .glassEffect(.regular, in: .circle)
+
+            VStack(spacing: 3) {
+                Text("UniTrack")
+                    .font(.system(size: 30, weight: .semibold, design: .rounded))
+                Text("ECU Student Record System")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
+    private var signInCard: some View {
+        VStack(spacing: 16) {
+            LabelledField(title: "Username", systemImage: "person") {
+                TextField("Enter your username", text: $username)
+                    .textFieldStyle(.plain)
+                    .focused($focusedField, equals: .username)
+                    .onSubmit { focusedField = .password }
+            }
+
+            LabelledField(title: "Password", systemImage: "lock") {
+                SecureField("Enter your password", text: $password)
+                    .textFieldStyle(.plain)
+                    .focused($focusedField, equals: .password)
+                    .onSubmit(attemptSignIn)
+            }
+
+            if let error = session.lastError {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                    Text(error)
+                    Spacer(minLength: 0)
+                }
+                .font(.caption)
+                .foregroundStyle(.red)
+                .transition(.opacity)
+            }
+
+            Button(action: attemptSignIn) {
+                Text("Sign In")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.defaultAction)
+            .disabled(!canSubmit)
+            .padding(.top, 2)
+        }
+        .padding(22)
+        .glassEffect(.regular, in: .rect(cornerRadius: 18))
+        // A small nudge on a failed attempt is clearer than only changing text.
+        .offset(x: isShaking ? -7 : 0)
+        .animation(.spring(response: 0.18, dampingFraction: 0.28), value: isShaking)
+    }
+
     private func attemptSignIn() {
-        guard !username.isEmpty, !passphrase.isEmpty else { return }
+        guard canSubmit else { return }
         let signedIn = session.signIn(username: username,
-                                      passphrase: passphrase,
+                                      password: password,
                                       accounts: accounts)
         if signedIn {
-            passphrase = ""
+            password = ""
+        } else {
+            password = ""
+            focusedField = .password
+            isShaking = true
+            // Snap back so the shake can run again on the next failed attempt.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                isShaking = false
+            }
         }
     }
 }

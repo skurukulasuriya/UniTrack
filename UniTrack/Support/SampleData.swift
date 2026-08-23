@@ -1,11 +1,15 @@
 import Foundation
 import SwiftData
 
-/// Seeds the store the first time the app runs.
+/// Seeds the academic records the first time the app runs.
 ///
 /// The course and unit codes are the real ones ECU publishes for the Bachelor of
 /// Computer Science, so the screens show something recognisable rather than
 /// placeholder text. Marks and student details are made up.
+///
+/// Deliberately creates no logins. The first administrator is set up by whoever
+/// runs the app, so there is no account here with a password sitting in the
+/// source code.
 enum SampleData {
 
     /// Fills an empty store. Does nothing if there's already data, so restarting
@@ -14,22 +18,6 @@ enum SampleData {
     static func seedIfNeeded(_ context: ModelContext) {
         let existing = try? context.fetch(FetchDescriptor<Student>())
         guard existing?.isEmpty ?? true else { return }
-
-        // Two accounts so both access levels the brief asks for can be demonstrated.
-        let admin = UserAccount(
-            username: "admin",
-            displayName: "Records Administrator",
-            role: .admin,
-            credentialHash: SessionStore.hash("admin123")
-        )
-        let general = UserAccount(
-            username: "student",
-            displayName: "General User",
-            role: .general,
-            credentialHash: SessionStore.hash("student123")
-        )
-        context.insert(admin)
-        context.insert(general)
 
         let course = Course(code: "U65",
                             title: "Bachelor of Computer Science",

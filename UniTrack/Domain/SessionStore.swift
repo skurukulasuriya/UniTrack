@@ -1,10 +1,10 @@
 import Foundation
-import CryptoKit
+import SwiftData
 import SwiftUI
 
 /// Holds who is signed in and what they're allowed to do.
 ///
-/// Every check on whether an edit is permitted goes through here, so the rule
+/// Every check on whether an action is permitted goes through here, so the rule
 /// lives in one place instead of being repeated across the views.
 @Observable
 final class SessionStore {
@@ -23,25 +23,24 @@ final class SessionStore {
     /// Whether the current user may change stored records.
     var canEditRecords: Bool { isSignedIn && role.canEditRecords }
 
-    /// Hashes a passphrase for comparison against a stored credential.
-    static func hash(_ passphrase: String) -> Data {
-        Data(SHA256.hash(data: Data(passphrase.utf8)))
-    }
+    /// Whether the current user may manage logins.
+    var canManageAccounts: Bool { isSignedIn && role.canEditRecords }
+
+    // MARK: - Signing in and out
 
     /// Tries to sign in. Returns true on success.
     ///
-    /// The same message is shown whether the username or the passphrase was
+    /// The same message comes back whether the username or the password was
     /// wrong, so the screen doesn't reveal which usernames exist.
     @discardableResult
-    func signIn(username: String, passphrase: String, accounts: [UserAccount]) -> Bool {
-        let attempted = Self.hash(passphrase)
+    func signIn(username: String, password: String, accounts: [UserAccount]) -> Bool {
+        let trimmed = username.trimmingCharacters(in: .whitespaces)
         let match = accounts.first {
-            $0.username.caseInsensitiveCompare(username) == .orderedSame
-                && $0.credentialHash == attempted
+            $0.username.caseInsensitiveCompare(trimmed) == .orderedSame
         }
 
-        guard let match else {
-            lastError = "Username or passphrase is incorrect."
+        guard let match, match.matches(password: password) else {
+            lastError = "Username or password is incorrect."
             return false
         }
 
@@ -55,6 +54,8 @@ final class SessionStore {
         lastError = nil
     }
 
+    // MARK: - Access control
+
     /// Called before any change to stored data.
     ///
     /// The views already hide admin screens from general users, but checking
@@ -62,6 +63,60 @@ final class SessionStore {
     func requireEditPermission() throws {
         guard isSignedIn else { throw AccessError.notSignedIn }
         guard role.canEditRecords else { throw AccessError.insufficientPrivileges }
+    }
+
+    // MARK: - Managing accounts
+
+    /// Creates a login. Only an administrator may do this, and administrators
+    /// can create accounts of either role.
+    ///
+    /// The very first account is the exception — there's nobody to be signed in
+    /// as yet, so `allowWithoutSession` covers first run setup.
+    @discardableResult
+    func createAccount(username: String,
+                       displayName: String,
+                       role newRole: Role,
+                       password: String,
+                       existing: [UserAccount],
+                       context: ModelContext,
+                       allowWithoutSession: Bool = false) throws -> UserAccount {
+        if !allowWithoutSession {
+            try requireEditPermission()
+        }
+
+        let trimmed = username.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { throw AccountError.usernameEmpty }
+        guard !existing.contains(where: {
+            $0.username.caseInsensitiveCompare(trimmed) == .orderedSame
+        }) else { throw AccountError.usernameTaken(trimmed) }
+
+        let account = try UserAccount(
+            username: trimmed,
+            displayName: displayName.isEmpty ? trimmed : displayName,
+            role: newRole,
+            password: password
+        )
+        context.insert(account)
+        return account
+    }
+
+    /// Removes a login. Guards against an administrator deleting themselves or
+    /// removing the last administrator, either of which would lock everyone out.
+    func deleteAccount(_ account: UserAccount,
+                       existing: [UserAccount],
+                       context: ModelContext) throws {
+        try requireEditPermission()
+
+        guard account.persistentModelID != currentUser?.persistentModelID else {
+            throw AccountError.cannotDeleteSelf
+        }
+
+        let remainingAdmins = existing.filter {
+            $0.role == .admin && $0.persistentModelID != account.persistentModelID
+        }
+        guard !remainingAdmins.isEmpty else { throw AccountError.lastAdministrator }
+
+        context.delete(account)
     }
 }
 
@@ -75,7 +130,28 @@ enum AccessError: LocalizedError {
         case .notSignedIn:
             "You need to sign in first."
         case .insufficientPrivileges:
-            "Only an administrator can change student records."
+            "Only an administrator can make this change."
+        }
+    }
+}
+
+/// Problems with creating or removing a login.
+enum AccountError: LocalizedError {
+    case usernameEmpty
+    case usernameTaken(String)
+    case cannotDeleteSelf
+    case lastAdministrator
+
+    var errorDescription: String? {
+        switch self {
+        case .usernameEmpty:
+            "Enter a username."
+        case .usernameTaken(let name):
+            "The username \"\(name)\" is already in use."
+        case .cannotDeleteSelf:
+            "You can't delete the account you're signed in with."
+        case .lastAdministrator:
+            "There has to be at least one administrator."
         }
     }
 }
