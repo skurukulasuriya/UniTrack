@@ -78,7 +78,30 @@ what is visible. Admin-only sections are not built for a general user at all,
 rather than shown disabled, and `requireEditPermission()` re-checks the role in
 the domain layer so the guarantee doesn't depend on the views being correct.
 
-### Security
+### Signing in for the first time
+
+There are no built-in credentials. The first time the app runs against an empty
+database it shows **Set Up UniTrack**, where you create the administrator
+account and choose its password.
+
+### If you cannot sign in
+
+Passwords are hashed and cannot be recovered. Demo mode also creates its
+accounts with a random password on each launch, which is never written down, so
+those logins are gone once the app closes.
+
+Reset the database to get back to first-run setup:
+
+```bash
+./Scripts/reset-store.sh
+```
+
+The old store is moved aside, not deleted. The next launch will show the setup
+screen.
+
+The database lives at `~/Library/Application Support/UniTrack/`.
+
+## Security
 
 - Passwords are never stored. Each account keeps a random 16-byte salt, an
   iteration count, and a PBKDF2-HMAC-SHA256 key.
