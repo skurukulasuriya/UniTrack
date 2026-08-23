@@ -6,9 +6,18 @@ import Charts
 /// administrator additionally sees per-unit performance and account figures.
 struct DashboardView: View {
     @Environment(SessionStore.self) private var session
-    @Query(sort: \Student.familyName) private var students: [Student]
+    @Query(sort: \Student.familyName) private var allStudents: [Student]
     @Query private var accounts: [UserAccount]
     @Query private var units: [Unit]
+
+    /// Only the records this user may see. A general user's dashboard is built
+    /// from their own results alone — no cohort figures, because those are
+    /// derived from other students' marks.
+    private var students: [Student] {
+        session.visibleStudents(from: allStudents)
+    }
+
+    private var isPersonal: Bool { session.seesOwnRecordOnly }
 
     private var gradeCounts: [Analytics.GradeCount] {
         Analytics.gradeDistribution(students).filter { $0.count > 0 }
@@ -22,7 +31,9 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 18) {
                 summaryTiles
                 gradeDistributionCard
-                wamComparisonCard
+                if !isPersonal {
+                    wamComparisonCard
+                }
                 periodTrendCard
                 if session.canEditRecords {
                     unitPerformanceCard
@@ -34,7 +45,9 @@ struct DashboardView: View {
         }
         .background(.background)
         .navigationTitle("Dashboard")
-        .navigationSubtitle(session.canEditRecords ? "Administrator view" : "General view")
+        .navigationSubtitle(isPersonal
+                            ? "Your results"
+                            : "Cohort overview · Administrator")
     }
 
     // MARK: - Summary
@@ -42,21 +55,28 @@ struct DashboardView: View {
     private var summaryTiles: some View {
         GlassEffectContainer(spacing: 14) {
             HStack(spacing: 14) {
-                MetricCard(title: "Students",
-                           value: "\(students.count)",
-                           caption: "\(students.filter { $0.status == .active }.count) active",
-                           systemImage: "person.2.fill")
+                if isPersonal {
+                    MetricCard(title: "Units Taken",
+                               value: "\(students.first?.enrolments.count ?? 0)",
+                               caption: "Recorded results",
+                               systemImage: "book.fill")
+                } else {
+                    MetricCard(title: "Students",
+                               value: "\(students.count)",
+                               caption: "\(students.filter { $0.status == .active }.count) active",
+                               systemImage: "person.2.fill")
+                }
 
-                MetricCard(title: "Cohort WAM",
+                MetricCard(title: isPersonal ? "Your WAM" : "Cohort WAM",
                            value: WAMCalculator.formatted(Analytics.cohortAverageWAM(students)),
-                           caption: "Mean across students",
+                           caption: isPersonal ? "Weighted by credit points" : "Mean across students",
                            systemImage: "chart.bar.fill")
 
                 MetricCard(title: "Pass Rate",
                            value: Analytics.passRate(students).map {
                                String(format: "%.0f%%", $0 * 100)
                            } ?? "—",
-                           caption: "Of counted enrolments",
+                           caption: isPersonal ? "Of your enrolments" : "Of counted enrolments",
                            systemImage: "checkmark.seal.fill")
 
                 if session.canEditRecords {
@@ -77,7 +97,8 @@ struct DashboardView: View {
     // MARK: - Charts
 
     private var gradeDistributionCard: some View {
-        SectionCard(title: "Grade Distribution", systemImage: "chart.bar.xaxis") {
+        SectionCard(title: isPersonal ? "Your Grades" : "Grade Distribution",
+                    systemImage: "chart.bar.xaxis") {
             if gradeCounts.isEmpty {
                 emptyChartNotice
             } else {
@@ -138,7 +159,8 @@ struct DashboardView: View {
     }
 
     private var periodTrendCard: some View {
-        SectionCard(title: "Average Mark by Study Period", systemImage: "chart.line.uptrend.xyaxis") {
+        SectionCard(title: isPersonal ? "Your Marks Over Time" : "Average Mark by Study Period",
+                    systemImage: "chart.line.uptrend.xyaxis") {
             let withMarks = periods.filter { $0.averageMark != nil }
             if withMarks.isEmpty {
                 emptyChartNotice

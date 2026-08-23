@@ -21,6 +21,10 @@ struct RootView: View {
         .task {
             // Put the sample academic records in place the first time the app runs.
             SampleData.seedIfNeeded(context)
+            #if DEBUG
+            // Only does anything when launched with -UniTrackDemo YES.
+            DemoMode.prepare(session: session, context: context)
+            #endif
         }
     }
 }

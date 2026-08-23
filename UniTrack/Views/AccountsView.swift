@@ -36,7 +36,7 @@ struct AccountsView: View {
         }
         .background(.background)
         .navigationTitle("Accounts")
-        .navigationSubtitle("^[\(accounts.count) account](inflect: true)")
+        .navigationSubtitle("\(accounts.count) account\(accounts.count == 1 ? "" : "s")")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("New Account", systemImage: "person.badge.plus") {

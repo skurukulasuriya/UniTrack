@@ -5,7 +5,19 @@ import SwiftData
 struct MainView: View {
     @Environment(SessionStore.self) private var session
 
-    @State private var section: Section? = .dashboard
+    @State private var section: Section? = MainView.initialSection
+
+    /// Normally the dashboard. In debug builds the screenshot tooling can open
+    /// a particular section with `-UniTrackDemoSection students`.
+    private static var initialSection: Section {
+        #if DEBUG
+        if let raw = UserDefaults.standard.string(forKey: "UniTrackDemoSection"),
+           let requested = Section(rawValue: raw) {
+            return requested
+        }
+        #endif
+        return .dashboard
+    }
 
     /// Top level areas of the app. Accounts only exists for administrators.
     enum Section: String, CaseIterable, Identifiable, Hashable {
@@ -38,10 +50,17 @@ struct MainView: View {
         session.canManageAccounts ? Section.allCases : [.dashboard, .students]
     }
 
+    /// A general user only ever reaches their own record, so the section reads
+    /// "My Record" rather than "Students".
+    private func title(for item: Section) -> String {
+        if item == .students && session.seesOwnRecordOnly { return "My Record" }
+        return item.title
+    }
+
     var body: some View {
         NavigationSplitView {
             List(availableSections, selection: $section) { item in
-                Label(item.title, systemImage: item.systemImage)
+                Label(title(for: item), systemImage: item.systemImage)
                     .tag(item)
                     .padding(.vertical, 2)
             }

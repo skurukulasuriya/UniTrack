@@ -18,7 +18,7 @@ struct UniTrackApp: App {
                 .environment(session)
         }
         .modelContainer(container)
-        .defaultSize(width: 1000, height: 660)
+        .defaultSize(width: 1180, height: 820)
         .windowToolbarStyle(.unified)
     }
 

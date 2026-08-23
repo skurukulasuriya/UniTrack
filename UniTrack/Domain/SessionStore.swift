@@ -54,6 +54,25 @@ final class SessionStore {
         lastError = nil
     }
 
+    // MARK: - What this user is allowed to see
+
+    /// Narrows a list of students down to the ones the signed-in user may look at.
+    ///
+    /// Administrators work across the whole cohort. A general user only ever
+    /// sees their own record — student records are personal information, and
+    /// one student has no business reading another's marks.
+    func visibleStudents(from all: [Student]) -> [Student] {
+        guard isSignedIn else { return [] }
+        if role.canEditRecords { return all }
+        guard let own = currentUser?.student else { return [] }
+        return all.filter { $0.persistentModelID == own.persistentModelID }
+    }
+
+    /// True when the signed-in user is limited to a single record.
+    var seesOwnRecordOnly: Bool {
+        isSignedIn && !role.canEditRecords
+    }
+
     // MARK: - Access control
 
     /// Called before any change to stored data.

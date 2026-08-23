@@ -23,6 +23,13 @@ final class UserAccount {
 
     var createdAt: Date
 
+    /// The student this login belongs to, for general users.
+    ///
+    /// This is what limits an ordinary user to their own record — without a
+    /// link there is nothing for them to look at. Administrators don't need one
+    /// because they work across the whole cohort.
+    var student: Student?
+
     var role: Role {
         get { Role(rawValue: roleRaw) ?? .general }
         set { roleRaw = newValue.rawValue }
@@ -34,6 +41,7 @@ final class UserAccount {
          salt: Data,
          iterations: Int,
          credentialHash: Data,
+         student: Student? = nil,
          createdAt: Date = .now) {
         self.username = username
         self.displayName = displayName
@@ -41,6 +49,7 @@ final class UserAccount {
         self.salt = salt
         self.iterations = iterations
         self.credentialHash = credentialHash
+        self.student = student
         self.createdAt = createdAt
     }
 
@@ -49,14 +58,16 @@ final class UserAccount {
     convenience init(username: String,
                      displayName: String,
                      role: Role,
-                     password: String) throws {
+                     password: String,
+                     student: Student? = nil) throws {
         let credential = try PasswordHasher.makeCredential(for: password)
         self.init(username: username,
                   displayName: displayName,
                   role: role,
                   salt: credential.salt,
                   iterations: credential.iterations,
-                  credentialHash: credential.hash)
+                  credentialHash: credential.hash,
+                  student: student)
     }
 
     /// Checks a password against what's stored.

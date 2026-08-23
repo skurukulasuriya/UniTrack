@@ -15,6 +15,9 @@ struct FirstRunSetupView: View {
     @State private var password = ""
     @State private var confirmation = ""
     @State private var errorMessage: String?
+    @FocusState private var focusedField: Field?
+
+    private enum Field { case displayName, username, password, confirmation }
 
     private var passwordsMatch: Bool {
         !password.isEmpty && password == confirmation
@@ -39,6 +42,7 @@ struct FirstRunSetupView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { focusedField = .displayName }
     }
 
     private var header: some View {
@@ -64,21 +68,29 @@ struct FirstRunSetupView: View {
             LabelledField(title: "Full Name", systemImage: "person") {
                 TextField("e.g. Records Administrator", text: $displayName)
                     .textFieldStyle(.plain)
+                    .focused($focusedField, equals: .displayName)
+                    .onSubmit { focusedField = .username }
             }
 
             LabelledField(title: "Username", systemImage: "at") {
                 TextField("Choose a username", text: $username)
                     .textFieldStyle(.plain)
+                    .focused($focusedField, equals: .username)
+                    .onSubmit { focusedField = .password }
             }
 
             LabelledField(title: "Password", systemImage: "lock") {
                 SecureField("At least \(PasswordHasher.minimumLength) characters", text: $password)
                     .textFieldStyle(.plain)
+                    .focused($focusedField, equals: .password)
+                    .onSubmit { focusedField = .confirmation }
             }
 
             LabelledField(title: "Confirm Password", systemImage: "lock.rotation") {
                 SecureField("Re-enter the password", text: $confirmation)
                     .textFieldStyle(.plain)
+                    .focused($focusedField, equals: .confirmation)
+                    .onSubmit { if canSubmit { createAdministrator() } }
             }
 
             requirements
