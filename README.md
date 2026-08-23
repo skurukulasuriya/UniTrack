@@ -101,6 +101,32 @@ screen.
 
 The database lives at `~/Library/Application Support/UniTrack/`.
 
+## Console output when running from Xcode
+
+Running from Xcode prints a number of system messages that look like errors but
+are not produced by this app. Running the built binary directly prints nothing
+at all.
+
+| Message | What it is |
+|---|---|
+| `connection to service named com.apple.linkd.autoShortcut` | macOS trying to register the app with the App Intents / Shortcuts system. The app has no App Intents — the build log says so itself: *"Metadata extraction skipped. No AppIntents.framework dependency found."* Registration fails because the app is ad-hoc signed with no developer team. |
+| `Unable to obtain a task name port right for pid …` | The debugger attaching. Fixed by the `get-task-allow` entitlement, below. |
+| `ViewBridge to RemoteViewService Terminated` | Apple's own text says *"benign unless unexpected"*. A system-provided view disconnecting. |
+| `It's not legal to call -layoutSubtreeIfNeeded on a view which is already being laid out` | An AppKit layout warning from inside SwiftUI, commonly seen with segmented controls on macOS 26. Logged once per launch and does not affect behaviour. |
+
+None of these indicate a problem with the application.
+
+### Debug signing
+
+Debug builds use `UniTrack.entitlements`, which grants `get-task-allow` so the
+debugger can attach, and turn **off** the hardened runtime. Hardened runtime is a
+distribution setting; combined with ad-hoc signing it stops the debugger getting
+a task port. Release builds keep it enabled.
+
+The app is deliberately **not sandboxed**. Sandboxing would move the database
+into a container, and for a coursework demonstration keeping it at a readable
+path in Application Support is more useful.
+
 ## Security
 
 - Passwords are never stored. Each account keeps a random 16-byte salt, an
