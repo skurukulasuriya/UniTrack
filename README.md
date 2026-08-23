@@ -127,7 +127,15 @@ spread across Semesters 1 to 3.
 
 ## Assets
 
-The Edith Cowan University logo belongs to the university and is not
-redistributed in this repository. Drop `ecu-logo.png` into
-`UniTrack/Assets.xcassets/ECULogo.imageset/` to have it appear on the sign in
-and setup screens; without it those screens fall back to a system symbol.
+The Edith Cowan University logo is used on the sign in and setup screens. It
+belongs to the university and is reproduced here for coursework only.
+
+The asset catalogue carries two versions. The supplied artwork has a black
+wordmark, which disappears against a dark window, so a light-appearance and a
+dark-appearance variant are both stored under
+`UniTrack/Assets.xcassets/ECULogo.imageset/` and macOS picks whichever matches.
+Only the wordmark was recoloured for the dark version — the teal leaf is
+untouched, and the logo itself has not been redrawn.
+
+If the artwork is ever missing, `UniversityLogo` falls back to a system symbol
+so the app still builds and runs.

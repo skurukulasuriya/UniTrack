@@ -2,15 +2,24 @@ import SwiftUI
 
 /// The university logo, shown on the sign in and setup screens.
 ///
-/// Falls back to a symbol if the artwork isn't in the asset catalogue, so the
-/// app still builds and runs for anyone who checks the repository out without
-/// it. The logo is university property and isn't redrawn here.
+/// The asset catalogue holds a light and a dark version — the wordmark is black
+/// in the supplied artwork, which disappears against a dark window — and
+/// `Image(_:)` picks whichever matches the current appearance.
+///
+/// Falls back to a symbol if the artwork isn't present, so the app still builds
+/// and runs for anyone who checks out the repository without it. The logo is
+/// university property and isn't redrawn here.
 struct UniversityLogo: View {
     var height: CGFloat = 58
 
+    /// Whether the artwork actually made it into the bundle.
+    private var hasArtwork: Bool {
+        NSImage(named: "ECULogo") != nil
+    }
+
     var body: some View {
-        if let logo = NSImage(named: "ECULogo") {
-            Image(nsImage: logo)
+        if hasArtwork {
+            Image("ECULogo")
                 .resizable()
                 .scaledToFit()
                 .frame(height: height)
