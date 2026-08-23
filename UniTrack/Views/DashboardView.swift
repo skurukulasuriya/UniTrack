@@ -30,6 +30,17 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 summaryTiles
+
+                // Two parts-of-a-whole breakdowns side by side. A pie suits
+                // these because the categories add up to the full cohort;
+                // grades stay a bar chart since they're ordered, not shares.
+                HStack(alignment: .top, spacing: 18) {
+                    outcomeSplitCard
+                    if !isPersonal {
+                        statusSplitCard
+                    }
+                }
+
                 gradeDistributionCard
                 if !isPersonal {
                     wamComparisonCard
@@ -54,7 +65,7 @@ struct DashboardView: View {
 
     private var summaryTiles: some View {
         GlassEffectContainer(spacing: 14) {
-            HStack(spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
                 if isPersonal {
                     MetricCard(title: "Units Taken",
                                value: "\(students.first?.enrolments.count ?? 0)",
@@ -91,6 +102,7 @@ struct DashboardView: View {
                                systemImage: "book.fill")
                 }
             }
+            .frame(height: 132)
         }
     }
 
@@ -107,7 +119,7 @@ struct DashboardView: View {
                         x: .value("Grade", entry.grade.code),
                         y: .value("Enrolments", entry.count)
                     )
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(Color.gradeColour(entry.grade))
                     .cornerRadius(4)
                     .annotation(position: .top) {
                         Text("\(entry.count)")
@@ -235,6 +247,69 @@ struct DashboardView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 8)
                 }
+            }
+        }
+    }
+
+    /// Pass, fail and withdrawn as a donut. These three make up every counted
+    /// enrolment, so a share-of-total chart is the right shape for it.
+    private var outcomeSplitCard: some View {
+        let counted = students.flatMap(\.enrolments).filter(\.countsTowardCalculations)
+        let passed = counted.filter { $0.grade != .fail && $0.grade != .withdrawnFail }.count
+        let failed = counted.filter { $0.grade == .fail }.count
+        let withdrawn = counted.filter { $0.grade == .withdrawnFail }.count
+        let slices = [("Passed", passed), ("Failed", failed), ("Withdrawn", withdrawn)]
+            .filter { $0.1 > 0 }
+
+        return SectionCard(title: isPersonal ? "Your Outcomes" : "Unit Outcomes",
+                           systemImage: "chart.pie.fill") {
+            if slices.isEmpty {
+                emptyChartNotice
+            } else {
+                Chart(slices, id: \.0) { slice in
+                    SectorMark(
+                        angle: .value("Enrolments", slice.1),
+                        innerRadius: .ratio(0.58),
+                        angularInset: 1.5
+                    )
+                    .foregroundStyle(by: .value("Outcome", slice.0))
+                    .cornerRadius(3)
+                }
+                .chartForegroundStyleScale([
+                    "Passed": Color.outcomePassed,
+                    "Failed": Color.outcomeFailed,
+                    "Withdrawn": Color.outcomeWithdrawn,
+                ])
+                .chartLegend(position: .bottom, spacing: 10)
+                .frame(height: 210)
+            }
+        }
+    }
+
+    /// Where the cohort sits in their studies. Administrators only — it is a
+    /// summary of other people.
+    private var statusSplitCard: some View {
+        let breakdown = Analytics.statusBreakdown(students).filter { $0.count > 0 }
+
+        return SectionCard(title: "Enrolment Status", systemImage: "chart.pie") {
+            if breakdown.isEmpty {
+                emptyChartNotice
+            } else {
+                Chart(breakdown, id: \.status) { entry in
+                    SectorMark(
+                        angle: .value("Students", entry.count),
+                        innerRadius: .ratio(0.58),
+                        angularInset: 1.5
+                    )
+                    .foregroundStyle(by: .value("Status", entry.status.displayName))
+                    .cornerRadius(3)
+                }
+                .chartForegroundStyleScale(
+                    domain: breakdown.map(\.status.displayName),
+                    range: breakdown.map { Color.statusColour($0.status) }
+                )
+                .chartLegend(position: .bottom, spacing: 10)
+                .frame(height: 210)
             }
         }
     }

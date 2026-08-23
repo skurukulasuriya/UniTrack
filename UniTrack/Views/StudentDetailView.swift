@@ -68,6 +68,7 @@ struct StudentDetailView: View {
                     StatusChip(text: student.studentID, systemImage: "number")
                     StatusChip(text: student.status.displayName,
                                systemImage: statusIcon,
+                               tint: Color.statusColour(student.status),
                                emphasised: student.status == .active)
                 }
             }
@@ -87,7 +88,7 @@ struct StudentDetailView: View {
     /// The three headline figures, grouped so the glass reads as one surface.
     private var metrics: some View {
         GlassEffectContainer(spacing: 14) {
-            HStack(spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
                 MetricCard(title: "Course WAM",
                            value: WAMCalculator.formatted(courseWAM),
                            caption: "Weighted by credit points",
@@ -112,6 +113,7 @@ struct StudentDetailView: View {
                            caption: "of \(student.course?.totalCreditPoints ?? 0) completed",
                            systemImage: "checkmark.seal.fill")
             }
+            .frame(height: 150)
         }
     }
 
@@ -200,6 +202,7 @@ struct StudentDetailView: View {
                 .frame(width: 42, alignment: .trailing)
 
             StatusChip(text: enrolment.grade.code,
+                       tint: Color.gradeColour(enrolment.grade),
                        emphasised: enrolment.grade == .highDistinction)
                 .frame(width: 52)
         }

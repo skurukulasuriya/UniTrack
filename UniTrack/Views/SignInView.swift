@@ -55,12 +55,7 @@ struct SignInView: View {
 
     private var branding: some View {
         VStack(spacing: 10) {
-            Image(systemName: "graduationcap.fill")
-                .font(.system(size: 30, weight: .medium))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.tint)
-                .frame(width: 68, height: 68)
-                .glassEffect(.regular, in: .circle)
+            UniversityLogo(height: 62)
 
             VStack(spacing: 3) {
                 Text("UniTrack")

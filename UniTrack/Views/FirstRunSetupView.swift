@@ -47,12 +47,7 @@ struct FirstRunSetupView: View {
 
     private var header: some View {
         VStack(spacing: 9) {
-            Image(systemName: "person.badge.key.fill")
-                .font(.system(size: 27, weight: .medium))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.tint)
-                .frame(width: 64, height: 64)
-                .glassEffect(.regular, in: .circle)
+            UniversityLogo(height: 56)
 
             Text("Set Up UniTrack")
                 .font(.system(size: 25, weight: .semibold, design: .rounded))

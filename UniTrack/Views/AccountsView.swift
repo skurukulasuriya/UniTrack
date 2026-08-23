@@ -62,7 +62,7 @@ struct AccountsView: View {
 
     private var summary: some View {
         GlassEffectContainer(spacing: 14) {
-            HStack(spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
                 MetricCard(title: "Administrators",
                            value: "\(accounts.filter { $0.role == .admin }.count)",
                            caption: "Full access",

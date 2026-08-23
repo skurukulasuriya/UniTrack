@@ -16,6 +16,8 @@ struct UniTrackApp: App {
         WindowGroup {
             RootView()
                 .environment(session)
+                // One accent for the whole app, matching the report's table headers.
+                .tint(.uniTrackAccent)
         }
         .modelContainer(container)
         .defaultSize(width: 1180, height: 820)

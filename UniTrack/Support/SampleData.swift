@@ -61,11 +61,11 @@ enum SampleData {
 
         let units = [
             Unit(code: "CSP1150", title: "Programming Principles", semesterOffered: "Semester 1"),
-            Unit(code: "CSI1241", title: "Systems Analysis", semesterOffered: "Semester 1"),
-            Unit(code: "ENS1161", title: "Computer Fundamentals", semesterOffered: "Semester 2"),
-            Unit(code: "CSG1207", title: "Systems and Database Design", semesterOffered: "Semester 2"),
-            Unit(code: "CSP2348", title: "Data Structures", semesterOffered: "Semester 1"),
-            Unit(code: "CSP2104", title: "Object Oriented Programming with C++", semesterOffered: "Semester 2"),
+            Unit(code: "CSI1241", title: "Systems Analysis", semesterOffered: "Semester 2"),
+            Unit(code: "ENS1161", title: "Computer Fundamentals", semesterOffered: "Semester 3"),
+            Unit(code: "CSG1207", title: "Systems and Database Design", semesterOffered: "Semester 1"),
+            Unit(code: "CSP2348", title: "Data Structures", semesterOffered: "Semester 2"),
+            Unit(code: "CSP2104", title: "Object Oriented Programming with C++", semesterOffered: "Semester 3"),
             Unit(code: "CSI3344", title: "Distributed Systems", semesterOffered: "Semester 1"),
             Unit(code: "CSP3341", title: "Programming Languages and Paradigms", semesterOffered: "Semester 2"),
         ]
@@ -83,7 +83,9 @@ enum SampleData {
 
             // Each student sits somewhere on a spread, so the cohort has strong
             // and struggling students rather than everyone clustering together.
-            let ability = Int.random(in: 42...88, using: &generator)
+            // Centred well above the pass mark, because a real cohort where the
+            // most common grade is a fail would be an odd thing to model.
+            let ability = Int.random(in: 50...86, using: &generator)
             let unitsTaken = Int.random(in: 4...8, using: &generator)
 
             let student = Student(
@@ -98,18 +100,20 @@ enum SampleData {
             context.insert(student)
 
             for unitIndex in 0..<unitsTaken {
-                let swing = Int.random(in: -12...12, using: &generator)
+                let swing = Int.random(in: -10...10, using: &generator)
                 var mark = max(0, min(100, ability + swing))
 
                 // A small number of withdrawals, which count as a zero.
-                let withdrew = Int.random(in: 0...24, using: &generator) == 0
+                let withdrew = Int.random(in: 0...44, using: &generator) == 0
                 if withdrew { mark = 0 }
 
                 let grade: Grade = withdrew ? .withdrawnFail : GradeMapper.grade(for: mark)
 
+                // ECU runs three teaching periods a year, so results cycle
+                // through semesters 1 to 3 rather than alternating between two.
                 let enrolment = Enrolment(
-                    year: 2024 + (unitIndex / 4),
-                    progressionPeriod: unitIndex.isMultiple(of: 2) ? "Semester 1" : "Semester 2",
+                    year: 2024 + (unitIndex / 3),
+                    progressionPeriod: "Semester \((unitIndex % 3) + 1)",
                     mark: mark,
                     grade: grade
                 )

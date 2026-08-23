@@ -31,10 +31,15 @@ struct MetricCard<Accessory: View>: View {
                 .foregroundStyle(.tertiary)
                 .padding(.top, 2)
 
+            // Pushes any accessory to the bottom edge so cards with one line up
+            // with cards without one.
+            Spacer(minLength: 8)
+
             accessory
-                .padding(.top, 10)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // Cards stretch to the tallest in the row, so a card carrying a picker
+        // doesn't end up larger than its neighbours.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(16)
         .glassEffect(.regular, in: .rect(cornerRadius: 14))
     }
